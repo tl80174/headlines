@@ -15,12 +15,18 @@ urllib2.install_opener(opener)
 RSS_FEEDS = { 'bbc': 'http://feeds.bbci.co.uk/news/rss.xml',
               'cnn': 'http://rss.cnn.com/rss/edition.rss',
               'fox': 'http://feeds.foxnews.com/foxnews/latest',
-              'iol': 'http://rss.iol.io/iol/news' }
+              'iol': 'http://rss.iol.io/iol/news'
+            }
 
 WEATHER_URL = 'http://api.openweathermap.org/data/2.5/weather?q={}units=metric&APPID=b6b29fb31b6ac7ce903f3773cd2e8484'
 
+CURRENCY_URL = 'https://openexchangerates.org/api/latest.json?app_id=ee99b3f5de0b460dbe2653c95b614192'
+
 DEFAULTS = {'publication':'bbc',
-            'city': 'London,UK'}
+            'city': 'London,UK',
+            'currency_from': 'GBP',
+            'currency_to': 'USD' 
+           }
                
 @app.route("/")
 def home():
@@ -35,12 +41,28 @@ def home():
         city = DEFAULTS['city']
     print 'city is: %s' % city
     weather = get_weather(city)
-    return render_template("home.html", articles=articles, weather=weather)
+    # get customized currency based on user input or default
+    currency_from = request.args.get('currency_from')
+    if not currency_from:
+        currency_from = DEFAULTS['currency_from']
+    currency_to = request.args.get('currency_to')
+    if not currency_to:
+        currency_to = DEFAULTS['currency_to']
+    rate = get_rate(currency_from, currency_to)
+    return render_template("home.html", articles=articles, weather=weather, currency_from=currency_from, currency_to=currency_to, rate=rate)
+    
 
 def get_news(publication):
     feed = feedparser.parse(RSS_FEEDS[publication], handlers = [proxy])
     return feed['entries']
 
+
+def get_rate(frm, to):
+    all_currency = rullib2.urlopen(CURRENTCY_URL).read()
+    parsed = json.loads(all_currency).get('rates')
+    frm_rate = parsed.get(frm.upper())
+    to_rate = parsed.get(to.upper())
+    return to_rate/frm_rate
 
 def get_weather(query):
     query = urllib.quote(query)
