@@ -8,7 +8,7 @@ import urllib2
 
 app = Flask(__name__)
 
-proxy = urllib2.ProxyHandler( {"http":"http://adc-proxy.oracle.com:80/", "https:":"http://adc-proxy.oracle.com:80/"} )
+proxy = urllib2.ProxyHandler( {"http":"http://adc-proxy.oracle.com:80/", "https":"http://adc-proxy.oracle.com:80/"} )
 opener = urllib2.build_opener(proxy)
 urllib2.install_opener(opener)
 
@@ -30,17 +30,19 @@ DEFAULTS = {'publication':'bbc',
                
 @app.route("/")
 def home():
+
     # get customized headlines, based on user input or default 
     publication = request.args.get('publication')
     if not publication:
         publication = DEFAULTS['publication']
     articles =  get_news(publication)
+
     # get customized weather based on user input or default
     city = request.args.get('city')
     if not city:
         city = DEFAULTS['city']
-    print 'city is: %s' % city
     weather = get_weather(city)
+
     # get customized currency based on user input or default
     currency_from = request.args.get('currency_from')
     if not currency_from:
@@ -48,8 +50,8 @@ def home():
     currency_to = request.args.get('currency_to')
     if not currency_to:
         currency_to = DEFAULTS['currency_to']
-    rate = get_rate(currency_from, currency_to)
-    return render_template("home.html", articles=articles, weather=weather, currency_from=currency_from, currency_to=currency_to, rate=rate)
+    rate, currencies = get_rate(currency_from, currency_to)
+    return render_template("home.html", articles=articles, weather=weather, currency_from=currency_from, currency_to=currency_to, rate=rate, currencies=sorted(currencies))
     
 
 def get_news(publication):
@@ -58,15 +60,16 @@ def get_news(publication):
 
 
 def get_rate(frm, to):
-    all_currency = rullib2.urlopen(CURRENTCY_URL).read()
+    all_currency = urllib2.urlopen(CURRENCY_URL).read()
     parsed = json.loads(all_currency).get('rates')
     frm_rate = parsed.get(frm.upper())
     to_rate = parsed.get(to.upper())
-    return to_rate/frm_rate
+    return (to_rate/frm_rate, parsed.keys())
 
 def get_weather(query):
     query = urllib.quote(query)
     url = WEATHER_URL.format(query)
+    print 'url is: %s' % url
     data = urllib2.urlopen(url).read()
     parsed = json.loads(data)
     weather = None
